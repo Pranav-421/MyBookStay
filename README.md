@@ -1,2 +1,1 @@
-UC1-MYBOOKSTAY
 # MyBookStay
