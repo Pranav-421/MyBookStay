@@ -70,3 +70,4 @@ public class UseCase2RoomInitialization {
         System.out.println("Currently Available: " + availableSuiteRooms + "\n");
     }
 }
+
