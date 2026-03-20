@@ -1,74 +1,95 @@
           import java.util.*;
           
-          class Service {
-              private String name;
-              private double cost;
+          class Reservation {
+              private String guestName;
+              private String roomType;
+              private String roomId;
           
-              public Service(String name, double cost) {
-                  this.name = name;
-                  this.cost = cost;
+              public Reservation(String guestName, String roomType, String roomId) {
+                  this.guestName = guestName;
+                  this.roomType = roomType;
+                  this.roomId = roomId;
               }
           
-              public String getName() {
-                  return name;
+              public String getGuestName() {
+                  return guestName;
               }
           
-              public double getCost() {
-                  return cost;
+              public String getRoomType() {
+                  return roomType;
+              }
+          
+              public String getRoomId() {
+                  return roomId;
               }
           
               @Override
               public String toString() {
-                  return name + " ($" + cost + ")";
+                  return String.format("Guest: %-10s | Room Type: %-10s | Room ID: %-5s", guestName, roomType, roomId);
               }
           }
           
-          class AddOnServiceManager {
-              private Map<String, List<Service>> reservationAddOns = new HashMap<>();
+          class BookingHistory {
+              private List<Reservation> history = new ArrayList<>();
           
-              public void addServiceToReservation(String reservationId, Service service) {
-                  reservationAddOns.computeIfAbsent(reservationId, k -> new ArrayList<>()).add(service);
-                  System.out.println("Added " + service.getName() + " to Reservation: " + reservationId);
+              public void recordBooking(Reservation reservation) {
+                  history.add(reservation);
               }
           
-              public void displayAddOns(String reservationId) {
-                  List<Service> services = reservationAddOns.getOrDefault(reservationId, new ArrayList<>());
-                  System.out.println("\n--- Add-On Services for " + reservationId + " ---");
-                  if (services.isEmpty()) {
-                      System.out.println("No add-ons selected.");
-                  } else {
-                      double totalCost = 0;
-                      for (Service s : services) {
-                          System.out.println("- " + s);
-                          totalCost += s.getCost();
-                      }
-                      System.out.println("Total Add-On Cost: $" + totalCost);
-                  }
-                  System.out.println("------------------------------------------");
+              public List<Reservation> getHistory() {
+                  return Collections.unmodifiableList(history);
               }
-                    }
-                    
-                    public class UseCase7AddOnServiceSelection {
-                        public static void main(String[] args) {
-                            AddOnServiceManager manager = new AddOnServiceManager();
+          }
           
-                  Service wifi = new Service("High-Speed WiFi", 15.0);
-                  Service breakfast = new Service("Buffet Breakfast", 25.0);
-                  Service spa = new Service("Spa Treatment", 50.0);
+          class BookingReportService {
+              private BookingHistory bookingHistory;
           
-                  String resId1 = "D-105";
-                  String resId2 = "S-102";
+              public BookingReportService(BookingHistory bookingHistory) {
+                  this.bookingHistory = bookingHistory;
+              }
           
-                  System.out.println("Simulating Add-On selections...");
-                  manager.addServiceToReservation(resId1, wifi);
-                  manager.addServiceToReservation(resId1, breakfast);
+              public void generateSummaryReport() {
+                  List<Reservation> records = bookingHistory.getHistory();
+                  System.out.println("\n==============================================");
+                  System.out.println("        HOTEL BOOKING SUMMARY REPORT          ");
+                  System.out.println("==============================================");
                   
-                  manager.addServiceToReservation(resId2, spa);
-                  manager.addServiceToReservation(resId2, breakfast);
+                  if (records.isEmpty()) {
+                      System.out.println("No confirmed bookings found.");
+                  } else {
+                      Map<String, Integer> typeCount = new HashMap<>();
+                      for (Reservation res : records) {
+                          System.out.println(res);
+                          typeCount.put(res.getRoomType(), typeCount.getOrDefault(res.getRoomType(), 0) + 1);
+                      }
+                      
+                      System.out.println("----------------------------------------------");
+                      System.out.println("Total Bookings: " + records.size());
+                      typeCount.forEach((type, count) -> 
+                          System.out.println(type + " Bookings: " + count)
+                      );
+                  }
+                  System.out.println("==============================================\n");
+              }
+          }
           
-                  manager.displayAddOns(resId1);
-                  manager.displayAddOns(resId2);
+          public class UseCase8BookingHistoryReport {
+              public static void main(String[] args) {
+                  BookingHistory history = new BookingHistory();
+                  BookingReportService reportService = new BookingReportService(history);
           
-                  System.out.println("Add-on services managed independently of core inventory and booking logic.");
+                  System.out.println("Simulating booking confirmations...");
+                  
+                  // Simulating confirmed reservations being added to history
+                  history.recordBooking(new Reservation("Alice", "Deluxe", "D-101"));
+                  history.recordBooking(new Reservation("Bob", "Suite", "S-201"));
+                  history.recordBooking(new Reservation("Charlie", "Deluxe", "D-102"));
+                  history.recordBooking(new Reservation("Diana", "Standard", "T-301"));
+          
+                  // Admin requests the report
+                  reportService.generateSummaryReport();
+                  
+                  System.out.println("Audit trail maintained in insertion order.");
+                  System.out.println("Reporting logic successfully isolated from data storage.");
               }
           }
