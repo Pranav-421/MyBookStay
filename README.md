@@ -1,95 +1,110 @@
-          import java.util.*;
+          import java.util.HashMap;
+          import java.util.Map;
           
-          class Reservation {
-              private String guestName;
-              private String roomType;
-              private String roomId;
-          
-              public Reservation(String guestName, String roomType, String roomId) {
-                  this.guestName = guestName;
-                  this.roomType = roomType;
-                  this.roomId = roomId;
-              }
-          
-              public String getGuestName() {
-                  return guestName;
-              }
-          
-              public String getRoomType() {
-                  return roomType;
-              }
-          
-              public String getRoomId() {
-                  return roomId;
-              }
-          
-              @Override
-              public String toString() {
-                  return String.format("Guest: %-10s | Room Type: %-10s | Room ID: %-5s", guestName, roomType, roomId);
+          // 1. Custom Exceptions mapped to domain-specific failures
+          class InvalidBookingException extends Exception {
+              public InvalidBookingException(String message) {
+                  super(message);
               }
           }
           
-          class BookingHistory {
-              private List<Reservation> history = new ArrayList<>();
-          
-              public void recordBooking(Reservation reservation) {
-                  history.add(reservation);
-              }
-          
-              public List<Reservation> getHistory() {
-                  return Collections.unmodifiableList(history);
+          class InvalidRoomTypeException extends InvalidBookingException {
+              public InvalidRoomTypeException(String message) {
+                  super(message);
               }
           }
           
-          class BookingReportService {
-              private BookingHistory bookingHistory;
-          
-              public BookingReportService(BookingHistory bookingHistory) {
-                  this.bookingHistory = bookingHistory;
-              }
-          
-              public void generateSummaryReport() {
-                  List<Reservation> records = bookingHistory.getHistory();
-                  System.out.println("\n==============================================");
-                  System.out.println("        HOTEL BOOKING SUMMARY REPORT          ");
-                  System.out.println("==============================================");
-                  
-                  if (records.isEmpty()) {
-                      System.out.println("No confirmed bookings found.");
-                  } else {
-                      Map<String, Integer> typeCount = new HashMap<>();
-                      for (Reservation res : records) {
-                          System.out.println(res);
-                          typeCount.put(res.getRoomType(), typeCount.getOrDefault(res.getRoomType(), 0) + 1);
-                      }
-                      
-                      System.out.println("----------------------------------------------");
-                      System.out.println("Total Bookings: " + records.size());
-                      typeCount.forEach((type, count) -> 
-                          System.out.println(type + " Bookings: " + count)
-                      );
-                  }
-                  System.out.println("==============================================\n");
+          class InsufficientInventoryException extends InvalidBookingException {
+              public InsufficientInventoryException(String message) {
+                  super(message);
               }
           }
           
-          public class UseCase8BookingHistoryReport {
+          // 2. The core System Manager
+          class HotelBookingSystem {
+              private Map<String, Integer> inventory;
+          
+              public HotelBookingSystem() {
+        // Initialize mock inventory
+        inventory = new HashMap<>();
+        inventory.put("Standard", 10);
+        inventory.put("Deluxe", 5);
+        inventory.put("Suite", 2);
+    }
+
+    public void bookRoom(String guestName, String roomType, int numRooms) throws InvalidBookingException {
+        // Fail-Fast Check 1: Input Validation
+        if (guestName == null || guestName.trim().isEmpty()) {
+            throw new InvalidBookingException("Guest name cannot be empty.");
+        }
+        if (numRooms <= 0) {
+            throw new InvalidBookingException("Number of rooms requested must be greater than zero.");
+        }
+
+        // Fail-Fast Check 2: Validate Room Type
+        if (!inventory.containsKey(roomType)) {
+            throw new InvalidRoomTypeException("Invalid room type selected: '" + roomType + "'.");
+        }
+
+        // Fail-Fast Check 3: Guard System State (Prevent negative inventory)
+        int availableRooms = inventory.get(roomType);
+        if (numRooms > availableRooms) {
+            throw new InsufficientInventoryException("Cannot book " + numRooms + " '" + roomType + "' room(s). Only " + availableRooms + " available.");
+        }
+
+        // If all validations pass, process the booking (Happy Path)
+        inventory.put(roomType, availableRooms - numRooms);
+        System.out.println("SUCCESS: Booking confirmed for " + guestName + " -> " + numRooms + " " + roomType + " room(s).");
+    }
+
+    public void displayInventory() {
+        System.out.println("Current Inventory: " + inventory);
+    }
+          }
+
+          // 3. Main execution class testing the Use Case
+          public class UseCase9ErrorHandlingValidation {
               public static void main(String[] args) {
-                  BookingHistory history = new BookingHistory();
-                  BookingReportService reportService = new BookingReportService(history);
-          
-                  System.out.println("Simulating booking confirmations...");
-                  
-                  // Simulating confirmed reservations being added to history
-                  history.recordBooking(new Reservation("Alice", "Deluxe", "D-101"));
-                  history.recordBooking(new Reservation("Bob", "Suite", "S-201"));
-                  history.recordBooking(new Reservation("Charlie", "Deluxe", "D-102"));
-                  history.recordBooking(new Reservation("Diana", "Standard", "T-301"));
-          
-                  // Admin requests the report
-                  reportService.generateSummaryReport();
-                  
-                  System.out.println("Audit trail maintained in insertion order.");
-                  System.out.println("Reporting logic successfully isolated from data storage.");
-              }
-          }
+                  HotelBookingSystem system = new HotelBookingSystem();
+        
+        System.out.println("=== Hotel Booking App Initialized ===");
+        system.displayInventory();
+
+        // Scenario 1: Valid Booking (Happy Path)
+        System.out.println("\n[Scenario 1] Valid Booking...");
+        try {
+            system.bookRoom("Alice", "Standard", 2);
+        } catch (InvalidBookingException e) {
+            System.out.println("ERROR: " + e.getMessage());
+        }
+
+        // Scenario 2: Invalid Input (Zero Rooms)
+        System.out.println("\n[Scenario 2] Invalid Input (Zero rooms)...");
+        try {
+            system.bookRoom("Bob", "Deluxe", 0);
+        } catch (InvalidBookingException e) {
+            System.out.println("REJECTED: " + e.getMessage());
+        }
+
+        // Scenario 3: Invalid Room Type
+        System.out.println("\n[Scenario 3] Invalid Room Type...");
+        try {
+            system.bookRoom("Charlie", "Presidential", 1);
+        } catch (InvalidBookingException e) {
+            System.out.println("REJECTED: " + e.getMessage());
+        }
+
+        // Scenario 4: Insufficient Inventory (Overbooking)
+        System.out.println("\n[Scenario 4] Insufficient Inventory (Booking 5 Suites when only 2 exist)...");
+        try {
+            system.bookRoom("Diana", "Suite", 5);
+        } catch (InvalidBookingException e) {
+            System.out.println("REJECTED: " + e.getMessage());
+        }
+
+        // Verify System Stability
+        System.out.println("\n=== Final System State ===");
+        system.displayInventory();
+        System.out.println("System remained stable and recovered gracefully from invalid inputs!");
+    }
+}
